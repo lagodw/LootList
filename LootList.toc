@@ -1,0 +1,11 @@
+## Interface: 11305
+## Author: Kalain
+## Version: v0.8
+## DefaultState: Enabled
+## LoadOnDemand: 0
+
+## Title: LootList
+## Notes: Store Loot Lists
+
+
+LootList.lua
