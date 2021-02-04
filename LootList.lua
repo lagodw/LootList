@@ -118,7 +118,7 @@ function lootlist_itemlookup(itemName)
 	end
 	
 	if item_match ~= '' then
-		players = list[item_row]
+		local players = list[item_row]
 		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll', UIParent, "BasicFrameTemplateWithInset")
 		
 		lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
@@ -138,51 +138,10 @@ function lootlist_itemlookup(itemName)
 			frames:SetSize(100, 30)
 			frames:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)
 			frames:SetText('FREEROLL')
-		else
-			local framesize = (#players - 1)*100
-			lootlist_rollframe[counter]:SetSize(framesize, 50)
-			
-			local frames = {}
-			for i=2, #players do
-				frames[i]=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
-				frames[i].i=i
-				frames[i]:SetSize(100, 30)
-				if i == 2 then 
-					frames[i]:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)				
-				else 
-					frames[i]:SetPoint('TOPLEFT', frames[i-1], 'TOPRIGHT')		
-				end
-				frames[i]:SetText(players[i])	
-				frames[i]:SetScript("OnClick", function()
-					print(players[i])
-				end)
-			end
-			
-			if #list[item_row] > 1 then
-				local current_player_up = list[item_row][2]
-				local current_player_up_number = 2
-				
-				SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
-				
-				lootlist_rollframe[counter]:RegisterEvent("CHAT_MSG_RAID")
-				lootlist_rollframe[counter]:RegisterEvent("CHAT_MSG_RAID_LEADER")
-
-				lootlist_rollframe[counter]:SetScript("OnEvent", function(self, event, ...)
-					local msg = ...
-					if msg:lower() == 'pass' then
-						if current_player_up_number < #list[item_row] then
-							current_player_up_number = current_player_up_number + 1
-							
-							current_player_up = list[item_row][current_player_up_number]
-							SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
-						else
-							SendChatMessage(itemName .. " FREEROLL", "RAID")
-						end
-					end
-				end)
-			else
 			SendChatMessage(itemName .. " FREEROLL", "RAID")
-			end
+		else
+			create_lootframe_buttons(itemName, item_row, lootlist_rollframe[counter])
+			handle_raidchat(itemName, item_row, lootlist_rollframe[counter])
 		end
 		
 		lootlist_rollframe[counter]:HookScript("OnHide", function() 
@@ -211,19 +170,40 @@ lootlist_baseframe:SetScript("OnEvent", function(self, event, ...)
 	end
 end)
 
+function create_lootframe_buttons(itemName, item_row, local_frame)
+	local players = list[item_row]
+	local framesize = (#players - 1)*100
+	lootlist_rollframe[counter]:SetSize(framesize, 50)
+	
+	local frames = {}
+	for i=2, #players do
+		frames[i]=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
+		frames[i].i=i
+		frames[i]:SetSize(100, 30)
+		if i == 2 then 
+			frames[i]:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)				
+		else 
+			frames[i]:SetPoint('TOPLEFT', frames[i-1], 'TOPRIGHT')		
+		end
+		frames[i]:SetText(players[i])	
+		frames[i]:SetScript("OnClick", function()
+			print(players[i])
+		end)
+	end
+end
 
-function handle_raidchat(itemName, item_row)
+
+function handle_raidchat(itemName, item_row, local_frame)
 	if #list[item_row] > 1 then
 		local current_player_up = list[item_row][2]
 		local current_player_up_number = 2
 		
 		SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
 		
-		blankframe = CreateFrame('Frame', 'blankframe', UIParent)
-		blankframe:RegisterEvent("CHAT_MSG_RAID")
-		blankframe:RegisterEvent("CHAT_MSG_RAID_LEADER")
+		local_frame:RegisterEvent("CHAT_MSG_RAID")
+		local_frame:RegisterEvent("CHAT_MSG_RAID_LEADER")
 
-		blankframe:SetScript("OnEvent", function(self, event, ...)
+		local_frame:SetScript("OnEvent", function(self, event, ...)
 			local msg = ...
 			if msg:lower() == 'pass' then
 				if current_player_up_number < #list[item_row] then
