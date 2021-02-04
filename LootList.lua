@@ -1,7 +1,14 @@
 list = {}
 list[1] = "Boss shared loot"
 list[2] = {"Wool Cloth" , "Stangg: 49", "Iviikel: 47", "Test: 30"}
-list[3] = {"Linen Cloth","Valoree: 45","Jhay: 33"}
+list[3] = {"Linen Cloth"}
+
+SLASH_LOOTLIST1 = '/ll'
+SlashCmdList["LOOTLIST"] = KethoEditBox_Show
+
+counter = 1 --used to keep track of how many open loot rolls exist
+lootlist_rollframe = {} --used to manage multiple loot roll windows
+
 
 function KethoEditBox_Show(text)
     if not KethoEditBox then
@@ -97,15 +104,13 @@ function mysplit (inputstr, sep)
         return t
 end
 
-counter = 1
-lootlist_rollframe = {}
 
 function lootlist_itemlookup(itemName)
 	
 	local item_match = ''
 	local item_row = 0
 	
-	for row=2, #list do
+	for row=1, #list do
 		if list[row][1] == itemName then 
 			item_match = itemName 
 			item_row = row
@@ -115,9 +120,6 @@ function lootlist_itemlookup(itemName)
 	if item_match ~= '' then
 		players = list[item_row]
 		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll', UIParent, "BasicFrameTemplateWithInset")
-		local framesize = (#players - 1)*100
-
-		lootlist_rollframe[counter]:SetSize(framesize, 50)
 		
 		lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
 		lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
@@ -130,26 +132,63 @@ function lootlist_itemlookup(itemName)
 			lootlist_rollframe[counter]:SetPoint("TOPLEFT", lootlist_rollframe[counter - 1], "BOTTOMLEFT")
 		end
 
-		local frames = {}
-		for i=2, #players do
-			frames[i]=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
-			frames[i].i=i
-			frames[i]:SetSize(100, 30)
-			if i == 2 then 
-				frames[i]:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)				
-			else 
-				frames[i]:SetPoint('TOPLEFT', frames[i-1], 'TOPRIGHT')		
+		if #players == 1 then
+			lootlist_rollframe[counter]:SetSize(100, 50)
+			frames=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
+			frames:SetSize(100, 30)
+			frames:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)
+			frames:SetText('FREEROLL')
+		else
+			local framesize = (#players - 1)*100
+			lootlist_rollframe[counter]:SetSize(framesize, 50)
+			
+			local frames = {}
+			for i=2, #players do
+				frames[i]=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
+				frames[i].i=i
+				frames[i]:SetSize(100, 30)
+				if i == 2 then 
+					frames[i]:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)				
+				else 
+					frames[i]:SetPoint('TOPLEFT', frames[i-1], 'TOPRIGHT')		
+				end
+				frames[i]:SetText(players[i])	
+				frames[i]:SetScript("OnClick", function()
+					print(players[i])
+				end)
 			end
-			frames[i]:SetText(players[i])	
-			frames[i]:SetScript("OnClick", function()
-				print(players[i])
-			end)
+			
+			if #list[item_row] > 1 then
+				local current_player_up = list[item_row][2]
+				local current_player_up_number = 2
+				
+				SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
+				
+				lootlist_rollframe[counter]:RegisterEvent("CHAT_MSG_RAID")
+				lootlist_rollframe[counter]:RegisterEvent("CHAT_MSG_RAID_LEADER")
+
+				lootlist_rollframe[counter]:SetScript("OnEvent", function(self, event, ...)
+					local msg = ...
+					if msg:lower() == 'pass' then
+						if current_player_up_number < #list[item_row] then
+							current_player_up_number = current_player_up_number + 1
+							
+							current_player_up = list[item_row][current_player_up_number]
+							SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
+						else
+							SendChatMessage(itemName .. " FREEROLL", "RAID")
+						end
+					end
+				end)
+			else
+			SendChatMessage(itemName .. " FREEROLL", "RAID")
+			end
 		end
+		
 		lootlist_rollframe[counter]:HookScript("OnHide", function() 
 			counter = counter - 1 
 		end)
 		counter = counter + 1
-
 	end
 end
 
@@ -172,6 +211,32 @@ lootlist_baseframe:SetScript("OnEvent", function(self, event, ...)
 	end
 end)
 
-	
-SLASH_LOOTLIST1 = '/ll'
-SlashCmdList["LOOTLIST"] = KethoEditBox_Show
+
+function handle_raidchat(itemName, item_row)
+	if #list[item_row] > 1 then
+		local current_player_up = list[item_row][2]
+		local current_player_up_number = 2
+		
+		SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
+		
+		blankframe = CreateFrame('Frame', 'blankframe', UIParent)
+		blankframe:RegisterEvent("CHAT_MSG_RAID")
+		blankframe:RegisterEvent("CHAT_MSG_RAID_LEADER")
+
+		blankframe:SetScript("OnEvent", function(self, event, ...)
+			local msg = ...
+			if msg:lower() == 'pass' then
+				if current_player_up_number < #list[item_row] then
+					current_player_up_number = current_player_up_number + 1
+					
+					current_player_up = list[item_row][current_player_up_number]
+					SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
+				else
+					SendChatMessage(itemName .. " FREEROLL", "RAID")
+				end
+			end
+		end)
+	else
+	SendChatMessage(itemName .. " FREEROLL", "RAID")
+	end
+end
