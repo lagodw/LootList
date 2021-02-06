@@ -9,3 +9,4 @@
 
 
 LootList.lua
+LootList_UI.lua

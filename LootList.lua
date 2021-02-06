@@ -1,112 +1,8 @@
-list = {}
-list[1] = "Boss shared loot"
-list[2] = {"Wool Cloth" , "Stangg: 49", "Iviikel: 47", "Test: 30"}
-list[3] = {"Linen Cloth"}
-
-SLASH_LOOTLIST1 = '/ll'
-SlashCmdList["LOOTLIST"] = KethoEditBox_Show
-
 counter = 1 --used to keep track of how many open loot rolls exist
 lootlist_rollframe = {} --used to manage multiple loot roll windows
 
 
-function KethoEditBox_Show(text)
-    if not KethoEditBox then
-        local f = CreateFrame("Frame", "KethoEditBox", UIParent, "DialogBoxFrame")
-        f:SetPoint("CENTER")
-        f:SetSize(600, 500)
-        
-        f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\PVPFrame\\UI-Character-PVP-Highlight", -- this one is neat
-            edgeSize = 16,
-            insets = { left = 8, right = 6, top = 8, bottom = 8 },
-        })
-        f:SetBackdropBorderColor(0, .44, .87, 0.5) -- darkblue
-        
-        -- Movable
-        f:SetMovable(true)
-        f:SetClampedToScreen(true)
-        f:SetScript("OnMouseDown", function(self, button)
-            if button == "LeftButton" then
-                self:StartMoving()
-            end
-        end)
-        f:SetScript("OnMouseUp", f.StopMovingOrSizing)
-        
-        -- ScrollFrame
-        local sf = CreateFrame("ScrollFrame", "KethoEditBoxScrollFrame", KethoEditBox, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("LEFT", 16, 0)
-        sf:SetPoint("RIGHT", -32, 0)
-        sf:SetPoint("TOP", 0, -16)
-        sf:SetPoint("BOTTOM", KethoEditBoxButton, "TOP", 0, 0)
-        
-        -- EditBox
-        local eb = CreateFrame("EditBox", "KethoEditBoxEditBox", KethoEditBoxScrollFrame)
-        eb:SetSize(sf:GetSize())
-        eb:SetMultiLine(true)
-        eb:SetAutoFocus(false) -- dont automatically focus
-        eb:SetFontObject("ChatFontNormal")
-        eb:SetScript("OnEscapePressed", function() f:Hide() end)
-        sf:SetScrollChild(eb)
-        
-        -- Resizable
-        f:SetResizable(true)
-        f:SetMinResize(150, 100)
-        
-        local rb = CreateFrame("Button", "KethoEditBoxResizeButton", KethoEditBox)
-        rb:SetPoint("BOTTOMRIGHT", -6, 7)
-        rb:SetSize(16, 16)
-        
-        rb:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-        rb:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-        rb:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-        
-        rb:SetScript("OnMouseDown", function(self, button)
-            if button == "LeftButton" then
-                f:StartSizing("BOTTOMRIGHT")
-                self:GetHighlightTexture():Hide() -- more noticeable
-            end
-        end)
-        rb:SetScript("OnMouseUp", function(self, button)
-            f:StopMovingOrSizing()
-            self:GetHighlightTexture():Show()
-            eb:SetWidth(sf:GetWidth())
-        end)
-        f:Show()
-    end
-    
-    if text then
-        KethoEditBoxEditBox:SetText(text)
-    end
-		
-	KethoEditBoxButton:HookScript("OnClick", function(self)
-		import_lootlist(KethoEditBoxEditBox:GetText())
-	end)
-
-    KethoEditBox:Show()
-end
-
-function import_lootlist(input_text)
-	for line in string.gmatch(input_text, "[^\n]+") do
-		list[#list + 1] = mysplit(line, ',')
-	end
-end
-
-function mysplit (inputstr, sep)
-        if sep == nil then
-                sep = "%s"
-        end
-        local t={}
-        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-                table.insert(t, str)
-        end
-        return t
-end
-
-
 function lootlist_itemlookup(itemName)
-	
 	local item_match = ''
 	local item_row = 0
 	
@@ -133,13 +29,11 @@ function lootlist_itemlookup(itemName)
 		end
 
 		if #players == 1 then
-			lootlist_rollframe[counter]:SetSize(100, 50)
-			frames=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
-			frames:SetSize(100, 30)
-			frames:SetPoint('TOPLEFT', lootlist_rollframe[counter], 'TOPLEFT', 0, -20)
-			frames:SetText('FREEROLL')
-			SendChatMessage(itemName .. " FREEROLL", "RAID")
-		else
+			local freeroll_indicator = 1
+			list[item_row][2] = 'FREEROLL: 0'
+		end
+		
+		if (UnitIsGroupLeader('player')) then
 			create_lootframe_buttons(itemName, item_row, lootlist_rollframe[counter])
 			handle_raidchat(itemName, item_row, lootlist_rollframe[counter])
 		end
@@ -148,6 +42,7 @@ function lootlist_itemlookup(itemName)
 			counter = counter - 1 
 		end)
 		counter = counter + 1
+		if freeroll_indicator == 1 then list[item_row][2] = nil end
 	end
 end
 
@@ -169,6 +64,7 @@ lootlist_baseframe:SetScript("OnEvent", function(self, event, ...)
 		end
 	end
 end)
+
 
 function create_lootframe_buttons(itemName, item_row, local_frame)
 	local players = list[item_row]
@@ -194,29 +90,80 @@ end
 
 
 function handle_raidchat(itemName, item_row, local_frame)
-	if #list[item_row] > 1 then
-		local current_player_up = list[item_row][2]
-		local current_player_up_number = 2
-		
-		SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
-		
-		local_frame:RegisterEvent("CHAT_MSG_RAID")
-		local_frame:RegisterEvent("CHAT_MSG_RAID_LEADER")
+	local current_player_up_number = 2
+	local current_player_up = {list[item_row][current_player_up_number]}
+	
+	if #list[item_row] > 2 then 
+		local next_ranking = strsub(list[item_row][current_player_up_number + 1], 
+		strfind(list[item_row][current_player_up_number + 1], ":"),  #list[item_row][current_player_up_number + 1])
+		while next_ranking == strsub(list[item_row][current_player_up_number], 
+		strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number]) do
+			current_player_up[current_player_up_number - 1] = list[item_row][current_player_up_number]
+			current_player_up_number = current_player_up_number + 1
+			current_ranking = strsub(list[item_row][current_player_up_number], 
+			strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number])
+		end
+	end
+	
+	if #current_player_up == 1 then
+		SendChatMessage(itemName .. " goes to " .. strsub(current_player_up[1], 1, strfind(current_player_up[1], ":") - 1), "RAID")
+	else 
+		local output_string = strsub(current_player_up[1], 1, strfind(current_player_up[1], ":") - 1)
+		for roller=2, #current_player_up do
+			output_string = output_string .. ", " .. strsub(current_player_up[roller], 1, strfind(current_player_up[roller], ":") - 1)
+		end
+		output_string = output_string .. " all rolling"
+		SendChatMessage(itemName .. " " .. output_string, "RAID")
+	end
+	
+	current_player_up_number = 2
+	local_frame:RegisterEvent("CHAT_MSG_RAID")
+	local_frame:RegisterEvent("CHAT_MSG_RAID_LEADER")
+	local_frame:SetScript("OnEvent", function(self, event, ...)
+		local msg, playerName = ...
+		playerName = strsub(playerName, 1, strfind(playerName, "-") - 1)
+		if msg:lower() == 'pass' then
+			if current_player_up_number < #list[item_row] then
+				current_player_up_number = current_player_up_number + 1
+				
+				local current_player_up_up = list[item_row][current_player_up_number]
+				SendChatMessage(itemName .. " goes to " .. strsub(current_player_up_up, 1, strfind(current_player_up_up, ":") - 1), "RAID")
+			else
+				SendChatMessage(itemName .. " goes to FREEROLL", "RAID")
+			end
+		end
+	end)
+end
 
-		local_frame:SetScript("OnEvent", function(self, event, ...)
-			local msg = ...
-			if msg:lower() == 'pass' then
-				if current_player_up_number < #list[item_row] then
-					current_player_up_number = current_player_up_number + 1
-					
-					current_player_up = list[item_row][current_player_up_number]
-					SendChatMessage(itemName .. " goes to " .. strsub(current_player_up, 1, strfind(current_player_up, ":") - 1), "RAID")
-				else
-					SendChatMessage(itemName .. " FREEROLL", "RAID")
+
+function get_player_up(item_row, current_passers)
+
+	local current_player_up_number = 2
+	local current_player_up = {list[item_row][current_player_up_number]}
+	
+	while #current_passers > 0 do
+	
+		if #list[item_row] > 2 then 
+			local next_ranking = strsub(list[item_row][current_player_up_number + 1], 
+			strfind(list[item_row][current_player_up_number + 1], ":"),  #list[item_row][current_player_up_number + 1])
+			while next_ranking == strsub(list[item_row][current_player_up_number], 
+			strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number]) do
+				current_player_up[current_player_up_number - 1] = list[item_row][current_player_up_number]
+				current_player_up_number = current_player_up_number + 1
+				current_ranking = strsub(list[item_row][current_player_up_number], 
+				strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number])
+			end
+		end
+		
+		for player=1, #current_player_up do
+			for passer=1, #current_passers do
+				if current_player_up[player] == current_passers[passer] then
+					current_player_up[player] = nil
+					current_passers[passer] = nil
 				end
 			end
-		end)
-	else
-	SendChatMessage(itemName .. " FREEROLL", "RAID")
+		end
 	end
+
+	return(item_row)
 end
