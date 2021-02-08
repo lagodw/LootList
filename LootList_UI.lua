@@ -1,9 +1,9 @@
 list = {}
 list[1] = "Boss shared loot"
-list[2] = {"Wool Cloth" , "Stangg: 49", "Iviikel: 47", "Test: 30"}
-list[3] = {"Linen Cloth"}
-list[4] = {"Flask of Oil", "Stangg: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
-list[4] = {"Light Feather", "Stangg: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+list[2] = {"Wool Cloth" , "Kalaeynz: 49", "Aliancespy: 49", "Test: 47"}
+list[3] = {"Linen Cloth" , "Kalaeynz: 49", "Aliancespy: 47", "Test: 47"}
+list[4] = {"Flask of Oil", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+list[5] = {"Light Feather", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
 
 function KethoEditBox_Show(text)
     if not KethoEditBox then

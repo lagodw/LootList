@@ -2,10 +2,29 @@ counter = 1 --used to keep track of how many open loot rolls exist
 lootlist_rollframe = {} --used to manage multiple loot roll windows
 
 
-function lootlist_itemlookup(itemName)
+local lootlist_baseframe = CreateFrame('Frame', 'LootList_Frame', UIParent, "BasicFrameTemplateWithInset")
+lootlist_baseframe:RegisterEvent("START_LOOT_ROLL")
+lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID")
+lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID_LEADER")
+lootlist_baseframe:SetScript("OnEvent", function(self, event, ...) 
+	if event == "START_LOOT_ROLL" then 
+		local texture, itemName, count, quality = GetLootRollItemInfo(...)
+		lootlist_itemlookup(itemName)
+	elseif event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
+		msg = ...
+		if strsub (msg, 1, 1) == '|' then 
+		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType,
+		itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(msg)
+		lootlist_itemlookup(itemName, itemLink)
+		end
+	end
+end)
+
+
+function lootlist_itemlookup(itemName, itemLink)
 	local item_match = ''
 	local item_row = 0
-	
+
 	for row=1, #list do
 		if list[row][1] == itemName then 
 			item_match = itemName 
@@ -15,7 +34,7 @@ function lootlist_itemlookup(itemName)
 	
 	if item_match ~= '' then
 		local players = list[item_row]
-		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll', UIParent, "BasicFrameTemplateWithInset")
+		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, LootList_Frame, "BasicFrameTemplateWithInset")
 		
 		lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
 		lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
@@ -33,13 +52,16 @@ function lootlist_itemlookup(itemName)
 			list[item_row][2] = 'FREEROLL: 0'
 		end
 		
+		current_passers = {}
+		
 		if (UnitIsGroupLeader('player')) then
-			create_lootframe_buttons(itemName, item_row, lootlist_rollframe[counter])
-			handle_raidchat(itemName, item_row, lootlist_rollframe[counter])
+			create_lootframe_buttons(itemLink, item_row, lootlist_rollframe[counter])
+			handle_raidchat(itemLink, item_row, lootlist_rollframe[counter])
 		end
 		
 		lootlist_rollframe[counter]:HookScript("OnHide", function() 
 			counter = counter - 1 
+			lootlist_rollframe[counter]:UnregisterAllEvents()
 		end)
 		counter = counter + 1
 		if freeroll_indicator == 1 then list[item_row][2] = nil end
@@ -47,26 +69,9 @@ function lootlist_itemlookup(itemName)
 end
 
 
-local lootlist_baseframe = CreateFrame('Frame', 'LootList_Frame', UIParent, "BasicFrameTemplateWithInset")
-lootlist_baseframe:RegisterEvent("START_LOOT_ROLL")
-lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID")
-lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID_LEADER")
-lootlist_baseframe:SetScript("OnEvent", function(self, event, ...) 
-	if event == "START_LOOT_ROLL" then 
-		local texture, itemName, count, quality = GetLootRollItemInfo(...)
-		lootlist_itemlookup(itemName)
-	elseif event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
-		msg = ...
-		if strsub (msg, 1, 1) == '|' then 
-		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType,
-		itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(msg)
-		lootlist_itemlookup(itemName)
-		end
-	end
-end)
 
 
-function create_lootframe_buttons(itemName, item_row, local_frame)
+function create_lootframe_buttons(itemLink, item_row, local_frame)
 	local players = list[item_row]
 	local framesize = (#players - 1)*100
 	lootlist_rollframe[counter]:SetSize(framesize, 50)
@@ -83,87 +88,127 @@ function create_lootframe_buttons(itemName, item_row, local_frame)
 		end
 		frames[i]:SetText(players[i])	
 		frames[i]:SetScript("OnClick", function()
-			print(players[i])
+			current_passers[#current_passers + 1] = strip_colon_player(players[i])
+			local new_player = get_player_up(item_row, current_passers)
+			if new_player == 1 then
+				send_raid_message(itemLink)
+			end
 		end)
 	end
 end
 
 
-function handle_raidchat(itemName, item_row, local_frame)
-	local current_player_up_number = 2
-	local current_player_up = {list[item_row][current_player_up_number]}
-	
-	if #list[item_row] > 2 then 
-		local next_ranking = strsub(list[item_row][current_player_up_number + 1], 
-		strfind(list[item_row][current_player_up_number + 1], ":"),  #list[item_row][current_player_up_number + 1])
-		while next_ranking == strsub(list[item_row][current_player_up_number], 
-		strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number]) do
-			current_player_up[current_player_up_number - 1] = list[item_row][current_player_up_number]
-			current_player_up_number = current_player_up_number + 1
-			current_ranking = strsub(list[item_row][current_player_up_number], 
-			strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number])
-		end
-	end
-	
-	if #current_player_up == 1 then
-		SendChatMessage(itemName .. " goes to " .. strsub(current_player_up[1], 1, strfind(current_player_up[1], ":") - 1), "RAID")
-	else 
-		local output_string = strsub(current_player_up[1], 1, strfind(current_player_up[1], ":") - 1)
-		for roller=2, #current_player_up do
-			output_string = output_string .. ", " .. strsub(current_player_up[roller], 1, strfind(current_player_up[roller], ":") - 1)
-		end
-		output_string = output_string .. " all rolling"
-		SendChatMessage(itemName .. " " .. output_string, "RAID")
-	end
-	
+function handle_raidchat(itemLink, item_row, local_frame)
 	current_player_up_number = 2
+	current_player_up = {strip_colon_player(list[item_row][current_player_up_number])}
+	
+	if #list[item_row] > current_player_up_number then 
+		local next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1]) 
+		while next_ranking == strip_colon_rank(list[item_row][current_player_up_number]) do
+			current_player_up_number = current_player_up_number + 1
+			current_player_up[#current_player_up + 1] = strip_colon_player(list[item_row][current_player_up_number])
+			current_ranking = strip_colon_rank(list[item_row][current_player_up_number])
+			if #list[item_row] > current_player_up_number then
+				next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1])
+			else 
+				next_ranking = 0
+			end
+		end
+	end
+	
+	send_raid_message(itemLink)
+	
 	local_frame:RegisterEvent("CHAT_MSG_RAID")
 	local_frame:RegisterEvent("CHAT_MSG_RAID_LEADER")
 	local_frame:SetScript("OnEvent", function(self, event, ...)
 		local msg, playerName = ...
 		playerName = strsub(playerName, 1, strfind(playerName, "-") - 1)
+		local pass_flag = 0
 		if msg:lower() == 'pass' then
-			if current_player_up_number < #list[item_row] then
-				current_player_up_number = current_player_up_number + 1
-				
-				local current_player_up_up = list[item_row][current_player_up_number]
-				SendChatMessage(itemName .. " goes to " .. strsub(current_player_up_up, 1, strfind(current_player_up_up, ":") - 1), "RAID")
-			else
-				SendChatMessage(itemName .. " goes to FREEROLL", "RAID")
+			for player=1, #current_player_up do
+				if playerName == current_player_up[player] then pass_flag = 1 end
+			end
+		end
+		
+		if msg:lower() == 'pass' and pass_flag == 1 then
+			pass_flag = 0
+			current_passers[#current_passers + 1] = playerName
+			local new_player = get_player_up(item_row, current_passers)
+			if new_player == 1 then
+				send_raid_message(itemLink)
 			end
 		end
 	end)
 end
 
+function strip_colon_player(player_string)
+	return(strsub(player_string, 1, strfind(player_string, ":") - 1))
+end
 
-function get_player_up(item_row, current_passers)
+function strip_colon_rank(player_string)
+	return(strsub(player_string, strfind(player_string, ":"),  #player_string))
+end
 
-	local current_player_up_number = 2
-	local current_player_up = {list[item_row][current_player_up_number]}
+function get_player_up(item_row, current_passers_func)
 	
-	while #current_passers > 0 do
+	local new_player = 0
 	
-		if #list[item_row] > 2 then 
-			local next_ranking = strsub(list[item_row][current_player_up_number + 1], 
-			strfind(list[item_row][current_player_up_number + 1], ":"),  #list[item_row][current_player_up_number + 1])
-			while next_ranking == strsub(list[item_row][current_player_up_number], 
-			strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number]) do
-				current_player_up[current_player_up_number - 1] = list[item_row][current_player_up_number]
+	for i = 1, #list[item_row] * #current_passers_func do
+		if #current_player_up == 0 then
+			new_player = 1
+		end
+		if #current_player_up == 0 and #list[item_row] > current_player_up_number then
+			current_player_up_number = current_player_up_number + 1
+			current_player_up = {strip_colon_player(list[item_row][current_player_up_number])}
+		end
+
+		if #list[item_row] > current_player_up_number then 
+			local next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1]) 
+			while next_ranking == strip_colon_rank(list[item_row][current_player_up_number]) do
 				current_player_up_number = current_player_up_number + 1
-				current_ranking = strsub(list[item_row][current_player_up_number], 
-				strfind(list[item_row][current_player_up_number], ":"),  #list[item_row][current_player_up_number])
+				current_player_up[#current_player_up + 1] = strip_colon_player(list[item_row][current_player_up_number])
+				current_ranking = strip_colon_rank(list[item_row][current_player_up_number])
+				if #list[item_row] > current_player_up_number then
+					next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1])
+				else 
+					next_ranking = 0
+				end
 			end
 		end
 		
 		for player=1, #current_player_up do
-			for passer=1, #current_passers do
-				if current_player_up[player] == current_passers[passer] then
+			for passer=1, #current_passers_func do
+				if current_player_up[player] == current_passers_func[passer] then
 					current_player_up[player] = nil
-					current_passers[passer] = nil
+					current_passers_func[passer] = nil
 				end
 			end
 		end
 	end
+	
+	return(new_player)
+end
 
-	return(item_row)
+
+function send_raid_message(itemLink)
+
+	if #current_player_up == 0 then
+		SendChatMessage(" " .. itemLink .. " FREEROLL ", "RAID")
+	elseif #current_player_up == 1 then
+		SendChatMessage(" " .. itemLink .. " goes to " .. current_player_up[1], "RAID")
+		SendChatMessage("You are up for " .. itemLink .. ". Roll need or type pass in chat.", "WHISPER", nil, current_player_up[1])
+	else 
+		local output_string = ''
+		for roller=1, #current_player_up do
+			if current_player_up[roller] ~= nil then 
+				if #output_string > 0 then output_string = output_string .. ", " .. current_player_up[roller] 
+				else output_string = current_player_up[roller]  end
+			end
+			if current_player_up[roller] then 
+				SendChatMessage("You are up for " .. itemLink .. ". Roll need or type pass in chat.", "WHISPER", nil, current_player_up[roller])
+			end
+		end
+		output_string = output_string .. " rolling"
+		SendChatMessage(" " .. itemLink .. " " .. output_string, "RAID")
+	end
 end
