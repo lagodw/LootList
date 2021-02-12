@@ -1,11 +1,12 @@
 list = {}
-list[1] = "Boss shared loot"
-list[2] = {"Wool Cloth" , "Kalaeynz: 49", "Aliancespy: 49", "Test: 47"}
-list[3] = {"Linen Cloth" , "Kalaeynz: 49", "Aliancespy: 47", "Test: 47"}
-list[4] = {"Flask of Oil", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
-list[5] = {"Light Feather", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+list['MC'] = {}
+list['MC'][1] = "Boss shared loot"
+list['MC'][2] = {"Wool Cloth" , "Kalaeynz: 49", "Aliancespy: 49", "Test: 47"}
+list['MC'][3] = {"Linen Cloth" , "Kalaeynz: 49", "Aliancespy: 47", "Test: 47"}
+list['MC'][4] = {"Flask of Oil", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+list['MC'][5] = {"Light Feather", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
 
-function KethoEditBox_Show(text)
+function KethoEditBox_Show(dungeon)
     if not KethoEditBox then
         local f = CreateFrame("Frame", "KethoEditBox", UIParent, "DialogBoxFrame")
         f:SetPoint("CENTER")
@@ -31,6 +32,7 @@ function KethoEditBox_Show(text)
         
         -- ScrollFrame
         local sf = CreateFrame("ScrollFrame", "KethoEditBoxScrollFrame", KethoEditBox, "UIPanelScrollFrameTemplate")
+		sf:SetOrientation("HORIZONTAL")
         sf:SetPoint("LEFT", 16, 0)
         sf:SetPoint("RIGHT", -32, 0)
         sf:SetPoint("TOP", 0, -16)
@@ -70,35 +72,23 @@ function KethoEditBox_Show(text)
         end)
         f:Show()
     end
-    
-    if text then
-        KethoEditBoxEditBox:SetText(text)
-    end
 		
 	KethoEditBoxButton:HookScript("OnClick", function(self)
-		import_lootlist(KethoEditBoxEditBox:GetText())
+		import_lootlist(KethoEditBoxEditBox:GetText(), dungeon)
 	end)
 
     KethoEditBox:Show()
 end
 
-function import_lootlist(input_text)
-	for line in string.gmatch(input_text, "[^\n]+") do
-		list[#list + 1] = mysplit(line, ',')
-	end
-end
 
-function mysplit (inputstr, sep)
-        if sep == nil then
-                sep = "%s"
-        end
-        local t={}
-        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-                table.insert(t, str)
-        end
-        return t
-end
 
 
 SLASH_LOOTLIST1 = '/ll'
 SlashCmdList["LOOTLIST"] = KethoEditBox_Show
+
+--[[
+SLASH_LOOTLISTHISTORY1 = '/llh'
+SlashCmdList["LOOTLISTHISTORY"] = show_ll_history
+--]]
+
+

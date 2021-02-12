@@ -1,5 +1,7 @@
 counter = 1 --used to keep track of how many open loot rolls exist
 lootlist_rollframe = {} --used to manage multiple loot roll windows
+lootlist_history = {}
+
 
 
 local lootlist_baseframe = CreateFrame('Frame', 'LootList_Frame', UIParent, "BasicFrameTemplateWithInset")
@@ -25,44 +27,52 @@ function lootlist_itemlookup(itemName, itemLink)
 	local item_match = ''
 	local item_row = 0
 
-	for row=1, #list do
-		if list[row][1] == itemName then 
-			item_match = itemName 
-			item_row = row
+	for instance, value in pairs(list) do
+		for row=1, #value do
+			if value[row][1] == itemName then 
+				item_match = itemName 
+				item_row = row
+				current_instance = instance
+			end
 		end
 	end
 	
 	if item_match ~= '' then
-		local players = list[item_row]
-		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, LootList_Frame, "BasicFrameTemplateWithInset")
+		local players = list[current_instance][item_row]
 		
-		lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
-		lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
-		lootlist_rollframe[counter].title:SetPoint("CENTER", lootlist_rollframe[counter].TitleBg, "CENTER", 5, 0)
-		lootlist_rollframe[counter].title:SetText(itemName)
-		
-		if counter == 1 then
-			lootlist_rollframe[counter]:SetPoint('CENTER', UIParent, "CENTER", -200, 200)
-		else 
-			lootlist_rollframe[counter]:SetPoint("TOPLEFT", lootlist_rollframe[counter - 1], "BOTTOMLEFT")
+		if lootlist_rollframe[counter] == nil then
+			lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, UIParent, "BasicFrameTemplateWithInset")
+			MakeMovable(lootlist_rollframe[counter])
+			if counter == 1 then
+				lootlist_rollframe[counter]:SetPoint('CENTER', UIParent, "CENTER", -200, 200)
+			else 
+				lootlist_rollframe[counter]:SetPoint("TOPLEFT", lootlist_rollframe[counter - 1], "BOTTOMLEFT")
+			end
+			lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
+			lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
+			lootlist_rollframe[counter].title:SetPoint("CENTER", lootlist_rollframe[counter].TitleBg, "CENTER", 5, 0)
+			lootlist_rollframe[counter]:HookScript("OnHide", function() 
+				counter = counter - 1 
+				lootlist_rollframe[counter]:UnregisterAllEvents()
+			end)
+		else
+			lootlist_rollframe[counter]:Show()
 		end
+		
+		lootlist_rollframe[counter].title:SetText(itemName)
 
 		if #players == 1 then
 			local freeroll_indicator = 1
-			list[item_row][2] = 'FREEROLL: 0'
+			list[current_instance][item_row][2] = 'FREEROLL: 0'
 		end
 		
 		current_passers = {}
 		
 		if (UnitIsGroupLeader('player')) then
-			create_lootframe_buttons(itemLink, item_row, lootlist_rollframe[counter])
-			handle_raidchat(itemLink, item_row, lootlist_rollframe[counter])
+			create_lootframe_buttons(itemLink, item_row, current_instance, lootlist_rollframe[counter])
+			handle_raidchat(itemLink, item_row, current_instance, lootlist_rollframe[counter])
 		end
 		
-		lootlist_rollframe[counter]:HookScript("OnHide", function() 
-			counter = counter - 1 
-			lootlist_rollframe[counter]:UnregisterAllEvents()
-		end)
 		counter = counter + 1
 		if freeroll_indicator == 1 then list[item_row][2] = nil end
 	end
@@ -71,12 +81,14 @@ end
 
 
 
-function create_lootframe_buttons(itemLink, item_row, local_frame)
-	local players = list[item_row]
+function create_lootframe_buttons(itemLink, item_row, current_instance, local_frame)
+	local players = list[current_instance][item_row]
 	local framesize = (#players - 1)*100
 	lootlist_rollframe[counter]:SetSize(framesize, 50)
 	
 	local frames = {}
+	local accept_button = {}
+	local pass_button = {}
 	for i=2, #players do
 		frames[i]=CreateFrame('Button', 'tmpframe', lootlist_rollframe[counter], "UIPanelButtonTemplate")
 		frames[i].i=i
@@ -86,30 +98,64 @@ function create_lootframe_buttons(itemLink, item_row, local_frame)
 		else 
 			frames[i]:SetPoint('TOPLEFT', frames[i-1], 'TOPRIGHT')		
 		end
+		frames[i]['clicked'] = 0
 		frames[i]:SetText(players[i])	
 		frames[i]:SetScript("OnClick", function()
-			current_passers[#current_passers + 1] = strip_colon_player(players[i])
-			local new_player = get_player_up(item_row, current_passers)
-			if new_player == 1 then
-				send_raid_message(itemLink)
+			if frames[i]['clicked'] == 0 then
+				accept_button[i] = CreateFrame('Button', 'accept_button' .. i, frames[i], "UIPanelButtonTemplate")
+				accept_button[i]:SetSize(50, 20)
+				accept_button[i]:SetPoint('BOTTOMLEFT', frames[i], 'TOPLEFT')
+				accept_button[i]:SetText('Accept')
+				accept_button[i]:SetScript("OnClick", function()
+					lootlist_history[#lootlist_history + 1] = {}
+					lootlist_history[#lootlist_history]['date'] = date()
+					lootlist_history[#lootlist_history]['item'] = itemLink
+					lootlist_history[#lootlist_history]['instance'] = current_instance
+					lootlist_history[#lootlist_history]['player'] = strip_colon_player(players[i])
+				
+					pass_button[i]:Hide()
+					accept_button[i]:Hide()
+					lootlist_rollframe[counter - 1]:Hide()
+					frames[i]['clicked'] = 0
+				end)
+
+				pass_button[i] = CreateFrame('Button', 'pass_button' .. i, frames[i], "UIPanelButtonTemplate")
+				pass_button[i]:SetSize(50, 20)
+				pass_button[i]:SetPoint('BOTTOMRIGHT', frames[i], 'TOPRIGHT')
+				pass_button[i]:SetText('Pass')
+				pass_button[i]:SetScript("OnClick", function()
+					current_passers[#current_passers + 1] = strip_colon_player(players[i])
+					local new_player = get_player_up(item_row, current_passers, current_instance)
+					if new_player == 1 then
+						send_raid_message(itemLink)
+					end
+					pass_button[i]:Hide()
+					accept_button[i]:Hide()
+					frames[i]['clicked'] = 0
+				end)
+				frames[i]['clicked'] = 1
+			else
+				frames[i]['clicked'] = 0
+				pass_button[i]:Hide()
+				accept_button[i]:Hide()
 			end
 		end)
 	end
 end
 
 
-function handle_raidchat(itemLink, item_row, local_frame)
+function handle_raidchat(itemLink, item_row, current_instance, local_frame)
 	current_player_up_number = 2
-	current_player_up = {strip_colon_player(list[item_row][current_player_up_number])}
+	current_player_up = {strip_colon_player(list[current_instance][item_row][current_player_up_number])}
 	
-	if #list[item_row] > current_player_up_number then 
-		local next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1]) 
-		while next_ranking == strip_colon_rank(list[item_row][current_player_up_number]) do
+	if #list[current_instance][item_row] > current_player_up_number then 
+		local next_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number + 1]) 
+		while next_ranking == strip_colon_rank(list[current_instance][item_row][current_player_up_number]) do
 			current_player_up_number = current_player_up_number + 1
-			current_player_up[#current_player_up + 1] = strip_colon_player(list[item_row][current_player_up_number])
-			current_ranking = strip_colon_rank(list[item_row][current_player_up_number])
-			if #list[item_row] > current_player_up_number then
-				next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1])
+			current_player_up[#current_player_up + 1] = strip_colon_player(list[current_instance][item_row][current_player_up_number])
+			current_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number])
+			if #list[current_instance][item_row] > current_player_up_number then
+				next_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number + 1])
 			else 
 				next_ranking = 0
 			end
@@ -133,7 +179,7 @@ function handle_raidchat(itemLink, item_row, local_frame)
 		if msg:lower() == 'pass' and pass_flag == 1 then
 			pass_flag = 0
 			current_passers[#current_passers + 1] = playerName
-			local new_player = get_player_up(item_row, current_passers)
+			local new_player = get_player_up(item_row, current_passers, current_instance)
 			if new_player == 1 then
 				send_raid_message(itemLink)
 			end
@@ -149,27 +195,27 @@ function strip_colon_rank(player_string)
 	return(strsub(player_string, strfind(player_string, ":"),  #player_string))
 end
 
-function get_player_up(item_row, current_passers_func)
+function get_player_up(item_row, current_passers_func, current_instance)
 	
 	local new_player = 0
 	
-	for i = 1, #list[item_row] * #current_passers_func do
+	for i = 1, #list[current_instance][item_row] * #current_passers_func do
 		if #current_player_up == 0 then
 			new_player = 1
 		end
-		if #current_player_up == 0 and #list[item_row] > current_player_up_number then
+		if #current_player_up == 0 and #list[current_instance][item_row] > current_player_up_number then
 			current_player_up_number = current_player_up_number + 1
-			current_player_up = {strip_colon_player(list[item_row][current_player_up_number])}
+			current_player_up = {strip_colon_player(list[current_instance][item_row][current_player_up_number])}
 		end
 
-		if #list[item_row] > current_player_up_number then 
-			local next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1]) 
-			while next_ranking == strip_colon_rank(list[item_row][current_player_up_number]) do
+		if #list[current_instance][item_row] > current_player_up_number then 
+			local next_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number + 1]) 
+			while next_ranking == strip_colon_rank(list[current_instance][item_row][current_player_up_number]) do
 				current_player_up_number = current_player_up_number + 1
-				current_player_up[#current_player_up + 1] = strip_colon_player(list[item_row][current_player_up_number])
-				current_ranking = strip_colon_rank(list[item_row][current_player_up_number])
-				if #list[item_row] > current_player_up_number then
-					next_ranking = strip_colon_rank(list[item_row][current_player_up_number + 1])
+				current_player_up[#current_player_up + 1] = strip_colon_player(list[current_instance][item_row][current_player_up_number])
+				current_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number])
+				if #list[current_instance][item_row] > current_player_up_number then
+					next_ranking = strip_colon_rank(list[current_instance][item_row][current_player_up_number + 1])
 				else 
 					next_ranking = 0
 				end
@@ -211,4 +257,37 @@ function send_raid_message(itemLink)
 		output_string = output_string .. " rolling"
 		SendChatMessage(" " .. itemLink .. " " .. output_string, "RAID")
 	end
+end
+
+
+function MakeMovable(frame)
+	frame:SetMovable(true)
+	frame:EnableMouse(true)
+	frame:RegisterForDrag("LeftButton")
+	frame:SetScript("OnDragStart", frame.StartMoving)
+	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+	
+	--option to resize but would need to get it to also scale buttons
+	--[[
+	frame:SetResizable(true)
+	frame:SetMinResize(100, 30)
+	local resizebutton = CreateFrame("Button", "ResizeButton", frame)
+	resizebutton:SetPoint("BOTTOMRIGHT", -6, 7)
+	resizebutton:SetSize(16, 16)
+	
+	resizebutton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+	resizebutton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+	resizebutton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+	
+	resizebutton:SetScript("OnMouseDown", function(self, button)
+		if button == "LeftButton" then
+			frame:StartSizing("BOTTOMRIGHT")
+			self:GetHighlightTexture():Hide() -- more noticeable
+		end
+	end)
+	resizebutton:SetScript("OnMouseUp", function(self, button)
+		frame:StopMovingOrSizing()
+		self:GetHighlightTexture():Show()
+	end)
+	--]]	
 end
