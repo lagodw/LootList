@@ -1,8 +1,27 @@
-counter = 1 --used to keep track of how many open loot rolls exist
-lootlist_rollframe = {} --used to manage multiple loot roll windows
-lootlist_history = {}
+local loadframe = CreateFrame("FRAME"); -- Need a frame to respond to events
+loadframe:RegisterEvent("ADDON_LOADED"); -- Fired when saved variables are loaded
+loadframe:RegisterEvent("PLAYER_LOGOUT"); -- Fired when about to log out
 
+function loadframe:OnEvent(event, arg1)
+	if event == "ADDON_LOADED" and arg1 == "LootList" then
+		if lootlist_history == nil then 
+			lootlist_history = {} 
+		end
+		if list == nil then
+			list = {}
+			list['MC'] = {}
+			list['MC'][1] = "Boss shared loot"
+			list['MC'][2] = {"Wool Cloth" , "Kalaeynz: 49", "Aliancespy: 49", "Test: 47"}
+			list['MC'][3] = {"Linen Cloth" , "Kalaeynz: 49", "Aliancespy: 47", "Test: 47"}
+			list['MC'][4] = {"Flask of Oil", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+			list['MC'][5] = {"Light Feather", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
+		end
+	end
+end
+loadframe:SetScript("OnEvent", loadframe.OnEvent)
 
+local lootlist_rollframe = {} --used to manage multiple loot roll windows
+local counter = 1 --used to keep track of how many open loot rolls exist
 
 local lootlist_baseframe = CreateFrame('Frame', 'LootList_Frame', UIParent, "BasicFrameTemplateWithInset")
 lootlist_baseframe:RegisterEvent("START_LOOT_ROLL")

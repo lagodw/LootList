@@ -8,7 +8,9 @@
 ## Notes: Store Loot Lists
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
+## SavedVariables: list, lootlist_history, ll_settings
+
+embeds.xml
 
 LootList.lua
 LootList_UI.lua
-RC_stuff.lua
