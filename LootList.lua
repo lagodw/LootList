@@ -1,6 +1,10 @@
+local addonname, addontable = ...
+_G.LootList = LibStub("AceAddon-3.0"):NewAddon(addontable,addonname, "AceConsole-3.0", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceTimer-3.0");
+
 local loadframe = CreateFrame("FRAME"); -- Need a frame to respond to events
 loadframe:RegisterEvent("ADDON_LOADED"); -- Fired when saved variables are loaded
 loadframe:RegisterEvent("PLAYER_LOGOUT"); -- Fired when about to log out
+local AceGUI = LibStub("AceGUI-3.0")
 
 function loadframe:OnEvent(event, arg1)
 	if event == "ADDON_LOADED" and arg1 == "LootList" then
@@ -43,40 +47,37 @@ end)
 
 
 function lootlist_itemlookup(itemName, itemLink)
-	local item_match = ''
+	local item_match = 0
 	local item_row = 0
 
 	for instance, value in pairs(list) do
 		for row=1, #value do
 			if value[row][1] == itemName then 
-				item_match = itemName 
+				item_match = 1 
 				item_row = row
 				current_instance = instance
 			end
 		end
 	end
 	
-	if item_match ~= '' then
+	if item_match == 1 then
 		local players = list[current_instance][item_row]
 		
-		if lootlist_rollframe[counter] == nil then
-			lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, UIParent, "BasicFrameTemplateWithInset")
-			MakeMovable(lootlist_rollframe[counter])
-			if counter == 1 then
-				lootlist_rollframe[counter]:SetPoint('CENTER', UIParent, "CENTER", -200, 200)
-			else 
-				lootlist_rollframe[counter]:SetPoint("TOPLEFT", lootlist_rollframe[counter - 1], "BOTTOMLEFT")
-			end
-			lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
-			lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
-			lootlist_rollframe[counter].title:SetPoint("CENTER", lootlist_rollframe[counter].TitleBg, "CENTER", 5, 0)
-			lootlist_rollframe[counter]:HookScript("OnHide", function() 
-				counter = counter - 1 
-				lootlist_rollframe[counter]:UnregisterAllEvents()
-			end)
-		else
-			lootlist_rollframe[counter]:Show()
+		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, UIParent, "BasicFrameTemplateWithInset")
+		print(itemName)
+		MakeMovable(lootlist_rollframe[counter])
+		if counter == 1 then
+			lootlist_rollframe[counter]:SetPoint('CENTER', UIParent, "CENTER", -200, 200)
+		else 
+			lootlist_rollframe[counter]:SetPoint("TOPLEFT", lootlist_rollframe[counter - 1], "BOTTOMLEFT")
 		end
+		lootlist_rollframe[counter].title = lootlist_rollframe[counter]:CreateFontString(nil, "TEST")
+		lootlist_rollframe[counter].title:SetFontObject("GameFontHighlight")
+		lootlist_rollframe[counter].title:SetPoint("CENTER", lootlist_rollframe[counter].TitleBg, "CENTER", 5, 0)
+		lootlist_rollframe[counter]:HookScript("OnHide", function() 
+			counter = counter - 1 
+			lootlist_rollframe[counter]:UnregisterAllEvents()
+		end)
 		
 		lootlist_rollframe[counter].title:SetText(itemName)
 
@@ -121,7 +122,7 @@ function create_lootframe_buttons(itemLink, item_row, current_instance, local_fr
 		frames[i]:SetText(players[i])	
 		frames[i]:SetScript("OnClick", function()
 			if frames[i]['clicked'] == 0 then
-				accept_button[i] = CreateFrame('Button', 'accept_button' .. i, frames[i], "UIPanelButtonTemplate")
+				accept_button[i] = CreateFrame('Button', 'accept_button', frames[i], "UIPanelButtonTemplate")
 				accept_button[i]:SetSize(50, 20)
 				accept_button[i]:SetPoint('BOTTOMLEFT', frames[i], 'TOPLEFT')
 				accept_button[i]:SetText('Accept')
@@ -136,9 +137,10 @@ function create_lootframe_buttons(itemLink, item_row, current_instance, local_fr
 					accept_button[i]:Hide()
 					lootlist_rollframe[counter - 1]:Hide()
 					frames[i]['clicked'] = 0
+					
 				end)
 
-				pass_button[i] = CreateFrame('Button', 'pass_button' .. i, frames[i], "UIPanelButtonTemplate")
+				pass_button[i] = CreateFrame('Button', 'pass_button', frames[i], "UIPanelButtonTemplate")
 				pass_button[i]:SetSize(50, 20)
 				pass_button[i]:SetPoint('BOTTOMRIGHT', frames[i], 'TOPRIGHT')
 				pass_button[i]:SetText('Pass')

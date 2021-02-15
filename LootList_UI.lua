@@ -1,6 +1,6 @@
 local addonname,addon = ...
-LootList = LibStub("AceAddon-3.0"):NewAddon(addon,addonname, "AceConsole-3.0", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceTimer-3.0");
-local LLHistory = addon:NewModule("LLHistory")
+--LootList = LibStub("AceAddon-3.0"):NewAddon(addon,addonname, "AceConsole-3.0", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceTimer-3.0");
+--local LLHistory = addon:NewModule("LLHistory")
 local AceGUI = LibStub("AceGUI-3.0")
 local dungeon_list = {"MC", "BWL", "AQ", "Naxx"}
 ll_settings = {}
