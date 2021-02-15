@@ -94,7 +94,7 @@ function frame_test()
 
 	local function DrawGroup2(container)
 
-		DrawHistoryTab(container)
+		DrawAttendanceTab(container)
 		
 	end
 	
@@ -124,16 +124,16 @@ function frame_test()
 
 	local tab =  AceGUI:Create("TabGroup")
 	tab:SetLayout("Flow")
-	tab:SetTabs({{text="Loot Lists", value="tab1"}, {text="History", value="tab2"}, {text="Settings", value="tab3"}})
+	tab:SetTabs({{text="Loot Lists", value="tab1"}, {text="Attendance", value="tab2"}, {text="Settings", value="tab3"}})
 	tab:SetCallback("OnGroupSelected", SelectGroup)
 	tab:SelectTab("tab1")
 
 	frame:AddChild(tab)
 
-    _G["MyGlobalFrameName"] = frame.frame
+    _G["LootListWindow"] = frame.frame
     -- Register the global variable `MyGlobalFrameName` as a "special frame"
     -- so that it is closed when the escape key is pressed.
-    tinsert(UISpecialFrames, "MyGlobalFrameName")
+    tinsert(UISpecialFrames, "LootListWindow")
 	
 end
 
@@ -192,6 +192,7 @@ function DrawImportTab(container)
 	
 	imp:AddChild(edit)
 
+	--[[
 	-- Credit to WeakAura2
 	-- Import editbox only shows first 2500 bytes to avoid freezing the game.
 	-- Use 'OnChar' event to store other characters in a text buffer
@@ -216,7 +217,8 @@ function DrawImportTab(container)
 	end)
 	edit.editBox:SetMaxBytes(2500)
 	edit.editBox:SetScript("OnMouseUp", nil);
-
+	--]]
+	
 	edit:SetCallback("OnEnterPressed", function(widget, event, text)
 		
 		import_lootlist(text, dungeon)
@@ -224,27 +226,9 @@ function DrawImportTab(container)
 	end)
 end
 
-function DrawHistoryTab(container)
+function DrawAttendanceTab(container)
 
-	local tmp = {}
-	local values = {'date', 'instance', 'item', 'player'}
-	for row=1, #lootlist_history do
-		for value=1, #values do
-			tmp[row] = {}
-			tmp[row][value] = AceGUI:Create("Button")
-			tmp[row][value]:SetWidth(150)
-			tmp[row][value]:SetHeight(30)
-			tmp[row][value]:SetText(lootlist_history[row][values[value]])
-			container:AddChild(tmp[row][value])
-	
-		end
-	
-		local desc = AceGUI:Create("Label")
-		desc:SetText("\n")
-		desc:SetFullWidth(true)
-		container:AddChild(desc)	
-	end
-		
+
 end
 
 function DrawSettingsTab(container)
@@ -321,5 +305,66 @@ function DrawSettingsTab(container)
 
 end
 
-SLASH_LOOTLISTHISTORY1 = '/ll'
-SlashCmdList["LOOTLISTHISTORY"] = frame_test
+
+local function show_history()
+
+	local ll_hist = CreateFrame('Frame', 'LL_History', UIParent, "BasicFrameTemplateWithInset")
+	ll_hist:SetPoint('CENTER', UIParent, "CENTER")
+	ll_hist:SetSize(600, 400)
+	ll_hist:SetFrameLevel(15)
+	ll_hist.title = ll_hist:CreateFontString(nil, "TEST")
+	ll_hist.title:SetFontObject("GameFontHighlight")
+	ll_hist.title:SetText(itemName)
+	
+	ll_hist:SetMovable(true)
+	ll_hist:EnableMouse(true)
+	ll_hist:RegisterForDrag("LeftButton")
+	ll_hist:SetScript("OnDragStart", ll_hist.StartMoving)
+	ll_hist:SetScript("OnDragStop", ll_hist.StopMovingOrSizing)
+
+	local ROW_HEIGHT = 40;
+	local NUM_ROWS = 45;
+	local colstuff = 	{
+			{name = "Date",		width = 100, align = 'CENTER'},
+			{name = "Instance",	width = 50,	align = 'CENTER'},	
+			{name = "Item",		width = 200, align = 'CENTER'},
+			{name = "Winner",	width = 150, align = 'CENTER'},
+		}
+
+	local highlight = { 
+		["r"] = 1.0, 
+		["g"] = 0.9, 
+		["b"] = 0.0, 
+		["a"] = 0.5, -- important, you want to see your text!
+	}
+
+	local hist = LibStub("ScrollingTable"):CreateST(colstuff, 15, 20 ,highlight, ll_hist)
+	
+	local hist_data = {}
+	for row=1, #lootlist_history do
+		local new_date = ConvertDate(lootlist_history[row]['date'])
+		hist_data[row] = {
+					['cols'] = {
+								{['value'] = new_date}
+								, {['value'] = lootlist_history[row]['instance']}
+								, {['value'] = lootlist_history[row]['item']}
+								, {['value'] = lootlist_history[row]['player']}
+								}
+					}
+	end
+	hist:SetData(hist_data)
+    _G["LootListHistoryWindow"] = ll_hist
+	tinsert(UISpecialFrames, "LootListHistoryWindow")
+
+end
+
+function ConvertDate(date)
+	local _, month, month_num, _, year = strsplit(" ", date)
+	return(month .. " " .. month_num .. " " .. year)
+end
+
+SLASH_LOOTLIST1 = '/ll'
+SlashCmdList["LOOTLIST"] = frame_test
+
+SLASH_LOOTLISTHISTORY1 = '/llh'
+SlashCmdList["LOOTLISTHISTORY"] = show_history

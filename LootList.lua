@@ -5,6 +5,7 @@ local loadframe = CreateFrame("FRAME"); -- Need a frame to respond to events
 loadframe:RegisterEvent("ADDON_LOADED"); -- Fired when saved variables are loaded
 loadframe:RegisterEvent("PLAYER_LOGOUT"); -- Fired when about to log out
 local AceGUI = LibStub("AceGUI-3.0")
+local current_passers = {}
 
 function loadframe:OnEvent(event, arg1)
 	if event == "ADDON_LOADED" and arg1 == "LootList" then
@@ -64,7 +65,6 @@ function lootlist_itemlookup(itemName, itemLink)
 		local players = list[current_instance][item_row]
 		
 		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, UIParent, "BasicFrameTemplateWithInset")
-		print(itemName)
 		MakeMovable(lootlist_rollframe[counter])
 		if counter == 1 then
 			lootlist_rollframe[counter]:SetPoint('CENTER', UIParent, "CENTER", -200, 200)
@@ -86,7 +86,7 @@ function lootlist_itemlookup(itemName, itemLink)
 			list[current_instance][item_row][2] = 'FREEROLL: 0'
 		end
 		
-		current_passers = {}
+		current_passers[itemLink] = {}
 		
 		if (UnitIsGroupLeader('player')) then
 			create_lootframe_buttons(itemLink, item_row, current_instance, lootlist_rollframe[counter])
@@ -145,8 +145,8 @@ function create_lootframe_buttons(itemLink, item_row, current_instance, local_fr
 				pass_button[i]:SetPoint('BOTTOMRIGHT', frames[i], 'TOPRIGHT')
 				pass_button[i]:SetText('Pass')
 				pass_button[i]:SetScript("OnClick", function()
-					current_passers[#current_passers + 1] = strip_colon_player(players[i])
-					local new_player = get_player_up(item_row, current_passers, current_instance)
+					current_passers[itemLink][#current_passers[itemLink] + 1] = strip_colon_player(players[i])
+					local new_player = get_player_up(item_row, current_passers[itemLink], current_instance)
 					if new_player == 1 then
 						send_raid_message(itemLink)
 					end
@@ -191,7 +191,7 @@ function handle_raidchat(itemLink, item_row, current_instance, local_frame)
 		local msg, playerName = ...
 		playerName = strsub(playerName, 1, strfind(playerName, "-") - 1)
 		local pass_flag = 0
-		if msg:lower() == 'pass' then
+		if msg:lower() == 'pass' or msg:lower() == 'p' then
 			for player=1, #current_player_up do
 				if playerName == current_player_up[player] then pass_flag = 1 end
 			end
@@ -199,8 +199,8 @@ function handle_raidchat(itemLink, item_row, current_instance, local_frame)
 		
 		if msg:lower() == 'pass' and pass_flag == 1 then
 			pass_flag = 0
-			current_passers[#current_passers + 1] = playerName
-			local new_player = get_player_up(item_row, current_passers, current_instance)
+			current_passers[itemLink][#current_passers[itemLink] + 1] = playerName
+			local new_player = get_player_up(item_row, current_passers[itemLink], current_instance)
 			if new_player == 1 then
 				send_raid_message(itemLink)
 			end
