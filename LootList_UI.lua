@@ -342,13 +342,13 @@ local function show_history()
 	
 	local hist_data = {}
 	for row=1, #lootlist_history do
-		local new_date = ConvertDate(lootlist_history[row]['date'])
+		local new_date = ConvertDate(lootlist_history[#lootlist_history - row + 1]['date'])
 		hist_data[row] = {
 					['cols'] = {
 								{['value'] = new_date}
-								, {['value'] = lootlist_history[row]['instance']}
-								, {['value'] = lootlist_history[row]['item']}
-								, {['value'] = lootlist_history[row]['player']}
+								, {['value'] = lootlist_history[#lootlist_history - row + 1]['instance']}
+								, {['value'] = lootlist_history[#lootlist_history - row + 1]['item']}
+								, {['value'] = lootlist_history[#lootlist_history - row + 1]['player']}
 								}
 					}
 	end
