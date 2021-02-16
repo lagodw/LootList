@@ -14,12 +14,6 @@ function loadframe:OnEvent(event, arg1)
 		end
 		if list == nil then
 			list = {}
-			list['MC'] = {}
-			list['MC'][1] = "Boss shared loot"
-			list['MC'][2] = {"Wool Cloth" , "Kalaeynz: 49", "Aliancespy: 49", "Test: 47"}
-			list['MC'][3] = {"Linen Cloth" , "Kalaeynz: 49", "Aliancespy: 47", "Test: 47"}
-			list['MC'][4] = {"Flask of Oil", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
-			list['MC'][5] = {"Light Feather", "Kalaeynz: 50", "Kalayn: 50", "Zepthane: 50", "Qase: 45"}
 		end
 	end
 end
@@ -259,11 +253,21 @@ end
 
 function send_raid_message(itemLink)
 
-	if #current_player_up == 0 then
-		SendChatMessage(" " .. itemLink .. " FREEROLL ", "RAID")
+	local channel = 'RAID'
+
+	if ll_settings["ll_announce"] == 2 then 
+		channel = "RAID_WARNING"
+	end
+
+	if #current_player_up == 0 and ll_settings["ll_announce"] ~= 3 then
+		SendChatMessage(" " .. itemLink .. " FREEROLL ", channel)
 	elseif #current_player_up == 1 then
-		SendChatMessage(" " .. itemLink .. " goes to " .. current_player_up[1], "RAID")
-		SendChatMessage("You are up for " .. itemLink .. ". Roll need or type pass in chat.", "WHISPER", nil, current_player_up[1])
+		if ll_settings["ll_announce"] ~= 3 then
+			SendChatMessage(" " .. itemLink .. " goes to " .. current_player_up[1], channel)
+		end
+		if ll_settings["ll_whisper"] == 1 then
+			SendChatMessage("You are up for " .. itemLink .. ". Roll need or type pass in chat.", "WHISPER", nil, current_player_up[1])
+		end
 	else 
 		local output_string = ''
 		for roller=1, #current_player_up do
@@ -271,12 +275,14 @@ function send_raid_message(itemLink)
 				if #output_string > 0 then output_string = output_string .. ", " .. current_player_up[roller] 
 				else output_string = current_player_up[roller]  end
 			end
-			if current_player_up[roller] then 
+			if current_player_up[roller] and ll_settings["ll_whisper"] == 1 then 
 				SendChatMessage("You are up for " .. itemLink .. ". Roll need or type pass in chat.", "WHISPER", nil, current_player_up[roller])
 			end
 		end
 		output_string = output_string .. " rolling"
-		SendChatMessage(" " .. itemLink .. " " .. output_string, "RAID")
+		if ll_settings["ll_announce"] ~= 3 then
+			SendChatMessage(" " .. itemLink .. " " .. output_string, channel)
+		end
 	end
 end
 
