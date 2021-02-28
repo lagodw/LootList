@@ -6,6 +6,7 @@ loadframe:RegisterEvent("ADDON_LOADED"); -- Fired when saved variables are loade
 loadframe:RegisterEvent("PLAYER_LOGOUT"); -- Fired when about to log out
 local AceGUI = LibStub("AceGUI-3.0")
 local current_passers = {}
+local current_items = {}
 
 function loadframe:OnEvent(event, arg1)
 	if event == "ADDON_LOADED" and arg1 == "LootList" then
@@ -24,19 +25,44 @@ local counter = 1 --used to keep track of how many open loot rolls exist
 
 local lootlist_baseframe = CreateFrame('Frame', 'LootList_Frame', UIParent, "BasicFrameTemplateWithInset")
 lootlist_baseframe:RegisterEvent("START_LOOT_ROLL")
-lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID")
 lootlist_baseframe:RegisterEvent("CHAT_MSG_RAID_LEADER")
+lootlist_baseframe:RegisterEvent("CHAT_MSG_LOOT")
 lootlist_baseframe:SetScript("OnEvent", function(self, event, ...) 
 	if event == "START_LOOT_ROLL" then 
 		local texture, itemName, count, quality = GetLootRollItemInfo(...)
-		lootlist_itemlookup(itemName)
-	elseif event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
+		local _, itemLink = GetItemInfo(itemName)
+		lootlist_itemlookup(itemName, itemLink)
+	elseif event == "CHAT_MSG_RAID_LEADER" then
 		msg = ...
 		if strsub (msg, 1, 1) == '|' then 
-		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType,
-		itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(msg)
-		lootlist_itemlookup(itemName, itemLink)
+			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType,
+			itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(msg)
+			lootlist_itemlookup(itemName, itemLink)
 		end
+	elseif event == "CHAT_MSG_LOOT" then
+		local text, playerName, languageName, channelName, playerName2 = ...
+		
+		if strfind(text, "receive loot") ~= nil then
+			itemName = strsub(text, strfind(text, ": ") + 2,  #text)
+			
+			local itemName, itemLink = GetItemInfo(itemName)
+			if #current_items > 0 then
+				for i=1, #current_items do
+					if current_items[i]['item'] == itemName then
+						lootlist_rollframe[i]:Hide()
+
+						lootlist_history[#lootlist_history + 1] = {}
+						lootlist_history[#lootlist_history]['date'] = date()
+						lootlist_history[#lootlist_history]['item'] = itemLink
+						lootlist_history[#lootlist_history]['instance'] = current_items[i]['instance']
+						lootlist_history[#lootlist_history]['player'] = playerName2
+						current_items[i] = nil
+					end
+				end
+			end
+
+		end
+		
 	end
 end)
 
@@ -58,6 +84,9 @@ function lootlist_itemlookup(itemName, itemLink)
 	if item_match == 1 then
 		local players = list[current_instance][item_row]
 		
+		current_items[counter] = {}
+		current_items[counter]['item'] = itemName
+		current_items[counter]['instance'] = current_instance
 		lootlist_rollframe[counter] = CreateFrame('Frame', 'LootList_Frame_Roll' .. counter, UIParent, "BasicFrameTemplateWithInset")
 		MakeMovable(lootlist_rollframe[counter])
 		if counter == 1 then
@@ -86,7 +115,7 @@ function lootlist_itemlookup(itemName, itemLink)
 			create_lootframe_buttons(itemLink, item_row, current_instance, lootlist_rollframe[counter])
 			handle_raidchat(itemLink, item_row, current_instance, lootlist_rollframe[counter])
 		end
-		
+
 		counter = counter + 1
 		if freeroll_indicator == 1 then list[item_row][2] = nil end
 	end
